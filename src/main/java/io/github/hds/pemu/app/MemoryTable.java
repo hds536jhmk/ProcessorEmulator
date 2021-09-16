@@ -1,5 +1,6 @@
 package io.github.hds.pemu.app;
 
+import io.github.hds.pemu.utils.Fonts;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -58,6 +59,10 @@ public final class MemoryTable extends JTable {
         // Removing table header and adding auto-resize
         setTableHeader(null);
         setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+        setFont(new Font(
+                Fonts.JetBrainsMono, Font.PLAIN,
+                getFont().getSize())
+        );
         // Setting renderer for Objects
         MemoryCellRenderer cellRenderer = new MemoryCellRenderer();
         cellRenderer.setHorizontalAlignment(SwingConstants.CENTER);

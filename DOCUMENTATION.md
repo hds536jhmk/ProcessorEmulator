@@ -53,6 +53,10 @@
    * [OR](#or)
    * [NOT](#not)
    * [XOR](#xor)
+   * [SHL](#shl)
+   * [SHR](#shr)
+   * [ROL](#rol)
+   * [ROR](#ror)
    * [CMP](#cmp)
    * [JMP](#jmp)
    * [JC](#jc)
@@ -1051,6 +1055,94 @@ _a: #DW 0x0C
 _b: #DW 0xAD
 xor_sign: #DW '^'
 equal_sign: #DW '='
+```
+
+## SHL
+
+`SHL a b`
+
+Shifts left `a` by `b` and stores the result in `a`.
+Sets Carry flag to the last bit that fell off (Zero flag doesn't change).
+
+```Assembly
+; Given an 8 bit Processor
+; And the binary num:
+;  0b11010010
+; The result will be (If shifted by 1):
+;  0b10100100
+; With CF = 1
+; If no shift occurs CF = 0
+SHL num shift
+HLT
+
+num: #DW 0b11010010
+shift: #DW 1
+```
+
+## SHR
+
+`SHR a b`
+
+Shifts right `a` by `b` and stores the result in `a`.
+Sets Carry flag to the last bit that fell off (Zero flag doesn't change).
+
+```Assembly
+; Given an 8 bit Processor
+; And the binary num:
+;  0b01000100
+; The result will be (If shifted by 1):
+;  0b00100010
+; With CF = 0
+; If no shift occurs CF = 0
+SHR num shift
+HLT
+
+num: #DW 0b01000100
+shift: #DW 1
+```
+
+## ROL
+
+`ROL a b`
+
+Rotates left `a` by `b` and stores the result in `a`.
+Sets Carry flag to the Least Significant Bit of the result (Zero flag doesn't change).
+
+```Assembly
+; Given an 8 bit Processor
+; And the binary num:
+;  0b01010001
+; The result will be (If rotated by 1):
+;  0b10100010
+; With CF = 0
+; If no rotation occurs CF = 0
+ROL num rot
+HLT
+
+num: #DW 0b01010001
+rot: #DW 1
+```
+
+## ROR
+
+`ROR a b`
+
+Rotates right `a` by `b` and stores the result in `a`.
+Sets Carry flag to the Most Significant Bit of the result (Zero flag doesn't change).
+
+```Assembly
+; Given an 8 bit Processor
+; And the binary num:
+;  0b10010011
+; The result will be:
+;  0b11001001
+; With CF = 1
+; If no rotation occurs CF = 0
+ROR num rot
+HLT
+
+num: #DW 0b10010011
+rot: #DW 1
 ```
 
 ## CMP

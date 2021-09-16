@@ -12,14 +12,33 @@ import org.jetbrains.annotations.NotNull;
 
 public final class Instructions {
 
-    private static void updateMathFlags(@NotNull IProcessor p, int value, boolean zero, boolean carry) {
+    private static void setZeroFlag(@NotNull IProcessor p, boolean zero) {
         IFlag ZF = p.getFlag("ZF");
-        IFlag CF = p.getFlag("CF");
         if (ZF == null) throw new NullPointerException("Zero Flag isn't present on the Processor.");
-        if (CF == null) throw new NullPointerException("Carry Flag isn't present on the Processor.");
+        ZF.setValue(zero);
+    }
 
-        if (zero) ZF.setValue(value == 0);
-        if (carry) CF.setValue((value & ~p.getMemory().getWord().BIT_MASK) != 0);
+    private static void setCarryFlag(@NotNull IProcessor p, boolean carry) {
+        IFlag CF = p.getFlag("CF");
+        if (CF == null) throw new NullPointerException("Carry Flag isn't present on the Processor.");
+        CF.setValue(carry);
+    }
+
+    private static boolean getZeroFlag(@NotNull IProcessor p) {
+        IFlag ZF = p.getFlag("ZF");
+        if (ZF == null) throw new NullPointerException("Zero Flag isn't present on the Processor.");
+        return ZF.getValue();
+    }
+
+    private static boolean getCarryFlag(@NotNull IProcessor p) {
+        IFlag CF = p.getFlag("CF");
+        if (CF == null) throw new NullPointerException("Carry Flag isn't present on the Processor.");
+        return CF.getValue();
+    }
+
+    private static void updateMathFlags(@NotNull IProcessor p, int value, boolean zero, boolean carry) {
+        if (zero) setZeroFlag(p, value == 0);
+        if (carry) setCarryFlag(p, (value & ~p.getMemory().getWord().BIT_MASK) != 0);
     }
 
     public static final Instruction NULL = new Instruction("NULL", 0);
@@ -241,17 +260,103 @@ public final class Instructions {
         }
     };
 
+    public static final Instruction SHL = new Instruction("SHL", 2) {
+        @Override
+        public void execute(@NotNull IProcessor p, int[] args) {
+            IMemory memory = p.getMemory();
+            int shlAmount = memory.getValueAt(args[1]);
+            if (shlAmount == 0) {
+                setCarryFlag(p, false);
+                return;
+            }
+
+            Word word = memory.getWord();
+            int lastBitMask = 1 << (word.TOTAL_BITS - 1);
+            int res = memory.getValueAt(args[0]) << (shlAmount - 1);
+            memory.setValueAt(args[0], res << 1);
+
+            setCarryFlag(p, (res & lastBitMask) != 0);
+        }
+    };
+
+    public static final Instruction SHR = new Instruction("SHR", 2) {
+        @Override
+        public void execute(@NotNull IProcessor p, int[] args) {
+            IMemory memory = p.getMemory();
+            int shrAmount = memory.getValueAt(args[1]);
+            if (shrAmount == 0) {
+                setCarryFlag(p, false);
+                return;
+            }
+
+            int firstBitMask = 1;
+            int res = memory.getValueAt(args[0]) >> (shrAmount - 1);
+            memory.setValueAt(args[0], res >> 1);
+
+            setCarryFlag(p, (res & firstBitMask) != 0);
+        }
+    };
+
+    public static final Instruction ROL = new Instruction("ROL", 2) {
+        @Override
+        public void execute(@NotNull IProcessor p, int[] args) {
+            IMemory memory = p.getMemory();
+
+            int rolAmount = memory.getValueAt(args[1]);
+            if (rolAmount == 0) {
+                setCarryFlag(p, false);
+                return;
+            }
+
+            Word word = memory.getWord();
+            int firstBitMask = 1;
+            int operand = memory.getValueAt(args[0]);
+
+            rolAmount %= word.TOTAL_BITS;
+            if (rolAmount == 0) {
+                setCarryFlag(p, (operand & firstBitMask) != 0);
+                return;
+            }
+
+            int res = operand << rolAmount | operand >> (word.TOTAL_BITS - rolAmount);
+            memory.setValueAt(args[0], res);
+            setCarryFlag(p, (res & firstBitMask) != 0);
+        }
+    };
+
+    public static final Instruction ROR = new Instruction("ROR", 2) {
+        @Override
+        public void execute(@NotNull IProcessor p, int[] args) {
+            IMemory memory = p.getMemory();
+
+            int rorAmount = memory.getValueAt(args[1]);
+            if (rorAmount == 0) {
+                setCarryFlag(p, false);
+                return;
+            }
+
+            Word word = memory.getWord();
+            int lastBitMask = 1 << (word.TOTAL_BITS - 1);
+            int operand = memory.getValueAt(args[0]);
+
+            rorAmount %= word.TOTAL_BITS;
+            if (rorAmount == 0) {
+                setCarryFlag(p,  (operand & lastBitMask) != 0);
+                return;
+            }
+
+            int res = operand << (word.TOTAL_BITS - rorAmount) | operand >> rorAmount;
+            memory.setValueAt(args[0], res);
+            setCarryFlag(p,  (res & lastBitMask) != 0);
+        }
+    };
+
     public static final Instruction CMP = new Instruction("CMP", 2) {
         @Override
         public void execute(@NotNull IProcessor p, int[] args) {
             IMemory memory = p.getMemory();
-            IFlag ZF = p.getFlag("ZF");
-            IFlag CF = p.getFlag("CF");
-            if (ZF == null) throw new NullPointerException("Zero Flag isn't present on the Processor.");
-            if (CF == null) throw new NullPointerException("Carry Flag isn't present on the Processor.");
-
-            ZF.setValue(memory.getValueAt(args[0]) == memory.getValueAt(args[1]));
-            CF.setValue(memory.getValueAt(args[0]) <  memory.getValueAt(args[1]));
+            setZeroFlag( p, memory.getValueAt(args[0]) == memory.getValueAt(args[1]));
+            setCarryFlag(p, memory.getValueAt(args[0]) <  memory.getValueAt(args[1]));
         }
     };
 
@@ -267,36 +372,28 @@ public final class Instructions {
     public static final Instruction JC = new Instruction("JC", 1) {
         @Override
         public void execute(@NotNull IProcessor p, int[] args) {
-            IFlag CF = p.getFlag("CF");
-            if (CF == null) throw new NullPointerException("Carry Flag isn't present on the Processor.");
-            if (CF.getValue()) JMP.execute(p, args);
+            if (getCarryFlag(p)) JMP.execute(p, args);
         }
     };
 
     public static final Instruction JNC = new Instruction("JNC", 1) {
         @Override
         public void execute(@NotNull IProcessor p, int[] args) {
-            IFlag CF = p.getFlag("CF");
-            if (CF == null) throw new NullPointerException("Carry Flag isn't present on the Processor.");
-            if (!CF.getValue()) JMP.execute(p, args);
+            if (!getCarryFlag(p)) JMP.execute(p, args);
         }
     };
 
     public static final Instruction JZ = new Instruction("JZ", 1) {
         @Override
         public void execute(@NotNull IProcessor p, int[] args) {
-            IFlag ZF = p.getFlag("ZF");
-            if (ZF == null) throw new NullPointerException("Zero Flag isn't present on the Processor.");
-            if (ZF.getValue()) JMP.execute(p, args);
+            if (getZeroFlag(p)) JMP.execute(p, args);
         }
     };
 
     public static final Instruction JNZ = new Instruction("JNZ", 1) {
         @Override
         public void execute(@NotNull IProcessor p, int[] args) {
-            IFlag ZF = p.getFlag("ZF");
-            if (ZF == null) throw new NullPointerException("Zero Flag isn't present on the Processor.");
-            if (!ZF.getValue()) JMP.execute(p, args);
+            if (!getZeroFlag(p)) JMP.execute(p, args);
         }
     };
 
@@ -331,22 +428,14 @@ public final class Instructions {
     public static final Instruction JBE = new Instruction("JBE", 1) {
         @Override
         public void execute(@NotNull IProcessor p, int[] args) {
-            IFlag ZF = p.getFlag("ZF");
-            IFlag CF = p.getFlag("CF");
-            if (ZF == null) throw new NullPointerException("Zero Flag isn't present on the Processor.");
-            if (CF == null) throw new NullPointerException("Carry Flag isn't present on the Processor.");
-            if (ZF.getValue() || CF.getValue()) JMP.execute(p, args);
+            if (getZeroFlag(p) || getCarryFlag(p)) JMP.execute(p, args);
         }
     };
 
     public static final Instruction JNBE = new Instruction("JNBE", 1) {
         @Override
         public void execute(@NotNull IProcessor p, int[] args) {
-            IFlag ZF = p.getFlag("ZF");
-            IFlag CF = p.getFlag("CF");
-            if (ZF == null) throw new NullPointerException("Zero Flag isn't present on the Processor.");
-            if (CF == null) throw new NullPointerException("Carry Flag isn't present on the Processor.");
-            if (!(ZF.getValue() || CF.getValue())) JMP.execute(p, args);
+            if (!(getZeroFlag(p) || getCarryFlag(p))) JMP.execute(p, args);
         }
     };
 
@@ -450,9 +539,10 @@ public final class Instructions {
                     NULL, BRK , DATA, MOV , SWP , XMOV, OUTI, OUTC,
                     GETI, GETC, GETK, TS  , TMS , INC , DEC , ADD ,
                     SUB , MUL , DIV , MOD , AND , OR  , NOT , XOR ,
-                    CMP , JMP , JC  , JNC , JZ  , JNZ , JE  , JNE ,
-                    JB  , JNB , JBE , JNBE, JA  , JNA , JAE , JNAE,
-                    CALL, RET , PUSH, POP , LOOP, HLT
+                    SHL , SHR , ROL , ROR , CMP , JMP , JC  , JNC ,
+                    JZ  , JNZ , JE  , JNE , JB  , JNB , JBE , JNBE,
+                    JA  , JNA , JAE , JNAE, CALL, RET , PUSH, POP ,
+                    LOOP, HLT
             }
     );
 

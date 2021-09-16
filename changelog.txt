@@ -1,4 +1,17 @@
 
+-- Version (v1.13.0-RELEASE)
+-- Changes from commit @cb87f89
+
+Added to MemoryView "Show As" ComboBox, this gives more options to the user to visualize Memory
+Removed MemoryView's "Show As Char" CheckBox
+Added Instructions SHL, SHR, ROL, ROR
+
+Now MemoryTable uses JetBrainsMono as its Font
+
+Added static class Fonts
+Added static field Fonts.JetBrainsMono
+Added static field StringUtils.SpecialCharacters.ESCAPE_CHARACTER
+
 -- Version (v1.12.2-RELEASE)
 -- Changes from commit @e0e292b
 
